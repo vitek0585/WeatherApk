@@ -1,3 +1,20 @@
+param(
+        [parameter(Mandatory=$true)][string] $file,
+        [parameter(Mandatory=$true)][string] $apiKey,
+        [parameter(Mandatory=$true)][string] $appId,
+        [parameter(Mandatory=$false)][int[]] $teams,
+        [parameter(Mandatory=$false)][int[]] $users,
+        [parameter(Mandatory=$false)][string[]] $tags,
+        [parameter(Mandatory=$false)][string] $dsym,
+        [parameter(Mandatory=$false)][string]$notes,
+        [parameter(Mandatory=$false)][string]$notesType,
+        [parameter(Mandatory=$false)][int] $notify,
+        [parameter(Mandatory=$false)][int] $status,
+        [parameter(Mandatory=$false)][int] $mandatory,
+        [parameter(Mandatory=$false)][string] $version,
+        [parameter(Mandatory=$false)][switch] $overwrite
+    )
+	
 #region Private Functions
 function Get-AsciiBytes($str){
     return  [System.Text.Encoding]::ASCII.GetBytes($str)
@@ -69,28 +86,7 @@ function Close-MultiPartStream{
     $body.Write($crlf, 0, $crlf.Length);
 }
 #endregion
-
-param(
-        [parameter(Mandatory=$true, position = 0)][string] $file,
-        [parameter(Mandatory=$true, position = 1)][string] $apiKey,
-        [parameter(Mandatory=$true, position = 2)][string] $appId,
-        [parameter(Mandatory=$false)][int[]] $teams,
-        [parameter(Mandatory=$false)][int[]] $users,
-        [parameter(Mandatory=$false)][string[]] $tags,
-        [parameter(Mandatory=$false)][string] $dsym,
-        [parameter(Mandatory=$false)][string]$notes,
-        [parameter(Mandatory=$false)][string]$notesType,
-        [parameter(Mandatory=$false)][int] $notify,
-        [parameter(Mandatory=$false)][int] $status,
-        [parameter(Mandatory=$false)][int] $mandatory,
-        [parameter(Mandatory=$false)][int] $version,
-        [parameter(Mandatory=$false)][switch] $overwrite
-    )
-    process{ 
-        Push-ToHockeyApp $file $apiKey $appId $teams $users $dsym $notes $notesType $notify $status $mandatory $version $overwrite
-    }
-
-    
+   
 <#
     .SYNOPSIS 
         Lists all versions of a specific app
@@ -273,3 +269,48 @@ Export-ModuleMember -Function Push-ToHockeyApp
 Export-ModuleMember -Function Get-HockeyAppVersions
 Export-ModuleMember -Function Get-HockeyAppVersion
 #>
+
+   
+        [byte[]]$crlf = 13, 10
+    [System.URI] $url = "https://rink.hockeyapp.net/api/2/apps/$appId/app_versions/upload"
+    $method = 'POST'
+    $headers = @{"X-HockeyAppToken"="$apiKey"}
+    $body = New-Object System.IO.MemoryStream
+    $boundary = [Guid]::NewGuid().ToString().Replace('-','')
+
+    Write-Host "Uploading version [$version] of [$appId] to HockeyApp."
+
+    if($overwrite.IsPresent){
+        if(!$version){
+            throw "you  must specify the version number if you wish to overwrite it."
+        }
+        $app = Get-HockeyAppVersion $apiKey $appId $version
+        if($app){
+            Write-Host "Existing version [$version] found for [$appId].`tUpdating."
+            [System.URI] $url = "https://rink.hockeyapp.net/api/2/apps/$appId/app_versions/$($app.id)"
+            $method = 'PUT'
+        }
+    }
+
+    Write-MultiPartProperty $body $boundary 'teams' $($teams -join ',') 
+    Write-MultiPartProperty $body $boundary 'users' $($users -join ',') 
+    Write-MultiPartProperty $body $boundary 'tags' $($tags -join ',') 
+    Write-MultiPartProperty $body $boundary 'status' $status 
+    Write-MultiPartProperty $body $boundary 'notify' $notify 
+    Write-MultiPartProperty $body $boundary 'mandatory' $mandatory 
+    Write-MultiPartProperty $body $boundary 'notes' $notes 
+    Write-MultiPartProperty $body $boundary 'notes_type' $notesType 
+    Write-MultiPartFile $body $boundary 'dsym' $dsym 
+    Write-MultiPartFile $body $boundary 'ipa' $file
+    Close-MultiPartStream $body $boundary
+
+    try {
+        (New-Object System.Net.WebClient).Proxy.Credentials = [System.Net.CredentialCache]::DefaultNetworkCredentials 
+        $response = Invoke-RestMethod -Headers $headers -Uri $URL -Method $method -ContentType "multipart/form-data; boundary=$boundary" -Body $body.ToArray()
+        Write-Output $response
+    }
+    catch [System.Net.WebException] {
+        Write-Error( "FAILED to reach '$URL': $_" )
+        throw $_
+    }
+		
