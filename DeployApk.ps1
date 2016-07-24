@@ -247,6 +247,6 @@ function Push-ToHockeyApp {
     }
 }
 
-export-modulemember -function Push-ToHockeyApp
-export-modulemember -function Get-HockeyAppVersions
-export-modulemember -function Get-HockeyAppVersion
+Export-ModuleMember -Function Push-ToHockeyApp
+Export-ModuleMember -Function Get-HockeyAppVersions
+Export-ModuleMember -Function Get-HockeyAppVersion
