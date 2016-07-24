@@ -70,6 +70,27 @@ function Close-MultiPartStream{
 }
 #endregion
 
+param(
+        [parameter(Mandatory=$true, position = 0)][string] $file,
+        [parameter(Mandatory=$true, position = 1)][string] $apiKey,
+        [parameter(Mandatory=$true, position = 2)][string] $appId,
+        [parameter(Mandatory=$false)][int[]] $teams,
+        [parameter(Mandatory=$false)][int[]] $users,
+        [parameter(Mandatory=$false)][string[]] $tags,
+        [parameter(Mandatory=$false)][string] $dsym,
+        [parameter(Mandatory=$false)][string]$notes,
+        [parameter(Mandatory=$false)][string]$notesType,
+        [parameter(Mandatory=$false)][int] $notify,
+        [parameter(Mandatory=$false)][int] $status,
+        [parameter(Mandatory=$false)][int] $mandatory,
+        [parameter(Mandatory=$false)][int] $version,
+        [parameter(Mandatory=$false)][switch] $overwrite
+    )
+    process{ 
+        Push-ToHockeyApp $file $apiKey $appId $teams $users $dsym $notes $notesType $notify $status $mandatory $version $overwrite
+    }
+
+    
 <#
     .SYNOPSIS 
         Lists all versions of a specific app
@@ -247,6 +268,8 @@ function Push-ToHockeyApp {
     }
 }
 
+<#
 Export-ModuleMember -Function Push-ToHockeyApp
 Export-ModuleMember -Function Get-HockeyAppVersions
 Export-ModuleMember -Function Get-HockeyAppVersion
+#>
